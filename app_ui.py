@@ -1,6 +1,5 @@
 import streamlit as st
 import tempfile
-import re
 
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -11,7 +10,7 @@ from langchain_community.vectorstores import FAISS
 # PAGE CONFIG
 # -------------------------------
 st.set_page_config(page_title="PDF Chatbot", layout="wide")
-st.title("📄 Smart PDF Chatbot (Report Analyzer)")
+st.title("📄 Smart PDF Chatbot (General Purpose)")
 
 # -------------------------------
 # SESSION STATE
@@ -70,49 +69,53 @@ if uploaded_files:
 
     st.sidebar.success(f"✅ {len(uploaded_files)} PDF(s) processed!")
 
-# -------------------------------
-# SMART ANSWER FUNCTION
-# -------------------------------
-def analyze_report(context, question):
-    if not context:
-        return "I don't know"
+    st.info("💡 Ask anything about your PDF")
 
-    question = question.lower()
+# -------------------------------
+# GENERIC ANSWER FUNCTION
+# -------------------------------
+def generate_answer(context, question):
+    if not context:
+        return "I don't know."
+
+    # Split into sentences/lines
     lines = context.split("\n")
 
-    findings = []
+    # Try to find most relevant sentence
+    question_words = question.lower().split()
 
-    # Detect medical abnormal values
+    best_line = ""
+    max_score = 0
+
     for line in lines:
-        l = line.lower()
+        line_lower = line.lower()
+        score = sum(1 for word in question_words if word in line_lower)
 
-        if any(word in l for word in ["low", "high", "below", "above"]):
-            findings.append(line.strip())
+        if score > max_score and len(line.strip()) > 40:
+            max_score = score
+            best_line = line.strip()
 
-        # detect numeric abnormal patterns
-        if re.search(r"\b(low|high|below|above)\b", l):
-            findings.append(line.strip())
+    if best_line:
+        return best_line
 
-    if "low" in question or "high" in question:
-        if findings:
-            return "🔍 Abnormal Findings:\n\n" + "\n".join(set(findings))
-        else:
-            return "No abnormal (low/high) values found."
+    # fallback
+    return context[:400]
 
-    if "summary" in question:
-        return context[:500]
-
-    # default fallback
-    for line in lines:
-        if len(line.strip()) > 50:
-            return line.strip()
-
-    return context[:300]
+# -------------------------------
+# QUESTION SUGGESTIONS
+# -------------------------------
+st.markdown("### 💬 Try asking:")
+st.markdown("""
+- What is this document about?
+- Give me summary
+- Explain this topic
+- Key points from document
+""")
 
 # -------------------------------
 # CHAT INPUT
 # -------------------------------
-user_input = st.chat_input("Ask about your report (e.g., 'what is low?', 'summary')")
+user_input = st.chat_input("Ask anything about your PDF...")
 
 if user_input:
 
@@ -121,18 +124,28 @@ if user_input:
     if st.session_state.vectorstore is None:
         response = "⚠️ Please upload a PDF first."
     else:
-        with st.spinner("Analyzing..."):
+        with st.spinner("Searching..."):
 
             results = st.session_state.vectorstore.similarity_search(user_input, k=4)
 
             context = ""
+            sources = []
+
             for doc in results:
                 context += doc.page_content + "\n\n"
+                sources.append(doc.metadata.get("source", "Uploaded PDF"))
 
-            response = analyze_report(context, user_input)
+            if not context.strip():
+                response = "⚠️ No relevant information found."
+            else:
+                response = generate_answer(context, user_input)
 
-            # Add source info
+            # Add sources
             response += "\n\n📌 Source: Uploaded PDF"
+
+            # Debug view
+            with st.expander("🔍 Retrieved Context"):
+                st.write(context[:800])
 
     st.session_state.messages.append(("assistant", response))
 
