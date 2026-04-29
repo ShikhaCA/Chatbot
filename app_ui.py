@@ -10,7 +10,7 @@ from langchain_community.vectorstores import FAISS
 # PAGE CONFIG
 # -------------------------------
 st.set_page_config(page_title="PDF Chatbot", layout="wide")
-st.title("📄 Smart PDF Chatbot (General Purpose)")
+st.title("Smart PDF Chatbot (General Purpose)")
 
 # -------------------------------
 # SESSION STATE
@@ -24,7 +24,7 @@ if "vectorstore" not in st.session_state:
 # -------------------------------
 # SIDEBAR
 # -------------------------------
-st.sidebar.header("📂 Upload PDFs")
+st.sidebar.header("Upload PDFs")
 
 uploaded_files = st.sidebar.file_uploader(
     "Upload PDFs",
@@ -33,7 +33,7 @@ uploaded_files = st.sidebar.file_uploader(
 )
 
 # Clear chat
-if st.sidebar.button("🧹 Clear Chat"):
+if st.sidebar.button("Clear Chat"):
     st.session_state.messages = []
 
 # -------------------------------
@@ -67,9 +67,9 @@ if uploaded_files:
         vectorstore = FAISS.from_documents(chunks, embeddings)
         st.session_state.vectorstore = vectorstore
 
-    st.sidebar.success(f"✅ {len(uploaded_files)} PDF(s) processed!")
+    st.sidebar.success(f" {len(uploaded_files)} PDF(s) processed!")
 
-    st.info("💡 Ask anything about your PDF")
+    st.info("Ask anything about your PDF")
 
 # -------------------------------
 # GENERIC ANSWER FUNCTION
@@ -104,7 +104,7 @@ def generate_answer(context, question):
 # -------------------------------
 # QUESTION SUGGESTIONS
 # -------------------------------
-st.markdown("### 💬 Try asking:")
+st.markdown("### Try asking:")
 st.markdown("""
 - What is this document about?
 - Give me summary
@@ -122,7 +122,7 @@ if user_input:
     st.session_state.messages.append(("user", user_input))
 
     if st.session_state.vectorstore is None:
-        response = "⚠️ Please upload a PDF first."
+        response = "Please upload a PDF first."
     else:
         with st.spinner("Searching..."):
 
@@ -136,15 +136,15 @@ if user_input:
                 sources.append(doc.metadata.get("source", "Uploaded PDF"))
 
             if not context.strip():
-                response = "⚠️ No relevant information found."
+                response = "No relevant information found."
             else:
                 response = generate_answer(context, user_input)
 
             # Add sources
-            response += "\n\n📌 Source: Uploaded PDF"
+            response += "\n\n Source: Uploaded PDF"
 
             # Debug view
-            with st.expander("🔍 Retrieved Context"):
+            with st.expander("Retrieved Context"):
                 st.write(context[:800])
 
     st.session_state.messages.append(("assistant", response))
