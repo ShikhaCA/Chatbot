@@ -10,7 +10,7 @@ from langchain_community.vectorstores import FAISS
 # PAGE CONFIG
 # -------------------------------
 st.set_page_config(page_title="PDF Chatbot", layout="wide")
-st.title("Smart PDF Chatbot (General Purpose)")
+st.title("Smart PDF Chatbot")
 
 # -------------------------------
 # SESSION STATE
@@ -67,8 +67,7 @@ if uploaded_files:
         vectorstore = FAISS.from_documents(chunks, embeddings)
         st.session_state.vectorstore = vectorstore
 
-    st.sidebar.success(f" {len(uploaded_files)} PDF(s) processed!")
-
+    st.sidebar.success(f"{len(uploaded_files)} PDF(s) processed!")
     st.info("Ask anything about your PDF")
 
 # -------------------------------
@@ -78,10 +77,7 @@ def generate_answer(context, question):
     if not context:
         return "I don't know."
 
-    # Split into sentences/lines
     lines = context.split("\n")
-
-    # Try to find most relevant sentence
     question_words = question.lower().split()
 
     best_line = ""
@@ -98,7 +94,6 @@ def generate_answer(context, question):
     if best_line:
         return best_line
 
-    # fallback
     return context[:400]
 
 # -------------------------------
@@ -128,20 +123,25 @@ if user_input:
 
             results = st.session_state.vectorstore.similarity_search(user_input, k=4)
 
-            context = ""
-            sources = []
+            # -------------------------------
+            # ADD CHAT MEMORY
+            # -------------------------------
+            history = ""
+            for role, msg in st.session_state.messages[-6:]: 
+                history += f"{role}: {msg}\n"
 
+            context = history + "\n\n"
+
+            # Add retrieved docs
             for doc in results:
                 context += doc.page_content + "\n\n"
-                sources.append(doc.metadata.get("source", "Uploaded PDF"))
 
             if not context.strip():
                 response = "No relevant information found."
             else:
                 response = generate_answer(context, user_input)
 
-            # Add sources
-            response += "\n\n Source: Uploaded PDF"
+            response += "\n\nSource: Uploaded PDF"
 
             # Debug view
             with st.expander("Retrieved Context"):
